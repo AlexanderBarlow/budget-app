@@ -8,8 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 
-export const metadata = { title: "Reset Password" };
-
 export default function ResetPasswordPage() {
     const [email, setEmail] = useState("");
     const [busy, setBusy] = useState(false);

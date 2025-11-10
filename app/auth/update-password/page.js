@@ -8,8 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 
-export const metadata = { title: "Set New Password" };
-
 export default function UpdatePasswordPage() {
     const [password, setPassword] = useState("");
     const [busy, setBusy] = useState(false);
