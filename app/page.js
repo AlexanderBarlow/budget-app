@@ -17,10 +17,10 @@ import SmartBudgetDemo from "@/components/SmartBudgetDemo";
 import HowItWorks from "@/components/HowItWorks";
 import CashFlowSection from "@/components/CashFlowSection";
 import RetirementSection from "@/components/RetirementSection";
-import NetWorthSection from "../components/NetWorthSection";
 import ChartSection from "@/components/ChartSection";
 import AIThinkingSection from "@/components/AIThinkingSection";
 import FooterSection from "@/components/FooterSection";
+import NetWorthSection from "@/components/NetWorthSection";
 
 // Example chart data for the ChartSection
 const chartData = [
