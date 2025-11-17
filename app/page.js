@@ -20,7 +20,7 @@ import RetirementSection from "@/components/RetirementSection";
 import ChartSection from "@/components/ChartSection";
 import AIThinkingSection from "@/components/AIThinkingSection";
 import FooterSection from "@/components/FooterSection";
-// import NetWorthSection from "@/components/NetWorthSection";
+import NetWorthSection from "@/components/NetWorthSection";
 
 // Example chart data for the ChartSection
 const chartData = [
@@ -57,7 +57,7 @@ export default function Home() {
       <RetirementSection />
 
       {/* Net Worth Growth */}
-      {/* <NetWorthSection /> */}
+      <NetWorthSection />
 
       {/* Dynamic Chart Example Section */}
       <ChartSection
