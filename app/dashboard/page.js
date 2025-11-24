@@ -1,76 +1,94 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useRouter } from "next/navigation";
 
-import KPISection from "@/components/KPISection";
-import CashFlowSection from "@/components/CashFlowSection";
-import NetWorthSection from "@/components/NetWorth";
-import RetirementSection from "@/components/RetirementSection";
+// Lazy-load heavy components (prevent Vercel memory crash)
+const KPISection = dynamic(() => import("@/components/KPISection"), {
+  ssr: false,
+});
+const CashFlowSection = dynamic(() => import("@/components/CashFlowSection"), {
+  ssr: false,
+});
+const NetWorthSection = dynamic(() => import("@/components/NetWorthSection"), {
+  ssr: false,
+});
+const RetirementSection = dynamic(
+  () => import("@/components/RetirementSection"),
+  { ssr: false }
+);
 
+import dynamic from "next/dynamic";
 import SlidePanel from "@/components/SlidePanel";
 import SetupPanel from "@/components/SetupPanel";
 
 export default function Dashboard() {
   const router = useRouter();
 
-  const [session, setSession] = useState(null);
-  const [checkingSession, setCheckingSession] = useState(true);
+  // undefined = unknown (loading)
+  // null = not logged in
+  // object = logged in
+  const [session, setSession] = useState(undefined);
   const [showSetup, setShowSetup] = useState(false);
 
   useEffect(() => {
     let mounted = true;
 
-    const checkSession = async () => {
-      const { data, error } = await supabase.auth.getSession();
+    async function load() {
+      const { data } = await supabase.auth.getSession();
+
       if (!mounted) return;
 
-      if (error) {
-        console.error("Error getting session:", error);
-      }
+      const s = data.session;
+      setSession(s);
 
-      const currentSession = data?.session ?? null;
-      setSession(currentSession);
-      setCheckingSession(false);
+      // redirect AFTER React hydrates
+      if (s === null) router.replace("/auth/sign-in");
+    }
 
-      if (!currentSession) {
-        router.replace("/auth/sign-in");
-      }
-    };
+    load();
 
-    checkSession();
-
-    // Listen for changes (sign in / sign out)
     const { data: subscription } = supabase.auth.onAuthStateChange(
       (_event, newSession) => {
         if (!mounted) return;
 
         setSession(newSession);
 
-        if (!newSession) {
-          router.replace("/auth/sign-in");
-        }
+        if (!newSession) router.replace("/auth/sign-in");
       }
     );
 
     return () => {
       mounted = false;
-      subscription?.subscription?.unsubscribe();
+      subscription.subscription.unsubscribe();
     };
   }, [router]);
 
-  // Still checking session
-  if (checkingSession) {
-    return <div className="p-10 text-center">Loading session…</div>;
+  // --------------------------
+  // UI STATES
+  // --------------------------
+
+  if (session === undefined) {
+    return (
+      <div className="p-10 text-center text-lg text-[#475569]">
+        Loading session…
+      </div>
+    );
   }
 
-  // No session (redirect is already triggered, but don't render dashboard)
-  if (!session) {
-    return <div className="p-10 text-center">Redirecting…</div>;
+  if (session === null) {
+    return (
+      <div className="p-10 text-center text-lg text-[#475569]">
+        Redirecting…
+      </div>
+    );
   }
 
-  // Has session → show dashboard
+  // --------------------------
+  // LOGGED IN
+  // --------------------------
+
   return (
     <div className="min-h-screen bg-[#f8fafc] pb-20">
       {/* Header */}
@@ -90,13 +108,13 @@ export default function Dashboard() {
         </button>
       </header>
 
-      {/* Sections */}
+      {/* Dashboard Sections */}
       <KPISection />
       <CashFlowSection />
       <NetWorthSection />
       <RetirementSection />
 
-      {/* Slide Panel */}
+      {/* Slide-in Panel */}
       <SlidePanel open={showSetup} onClose={() => setShowSetup(false)}>
         <SetupPanel onClose={() => setShowSetup(false)} />
       </SlidePanel>
