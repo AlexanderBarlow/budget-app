@@ -11,7 +11,7 @@ const KPISection = dynamic(() => import("@/components/KPISection"), {
 const CashFlowSection = dynamic(() => import("@/components/CashFlowSection"), {
   ssr: false,
 });
-const NetWorthSection = dynamic(() => import("@/components/NetWorthSection"), {
+const NetWorthSection = dynamic(() => import("@/components/NetWorth"), {
   ssr: false,
 });
 const RetirementSection = dynamic(
