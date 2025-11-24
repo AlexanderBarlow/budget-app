@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
 
 import KPISection from "@/components/KPISection";
 import CashFlowSection from "@/components/CashFlowSection";
-import NetWorthSection from "@/components/NetWorth";
+import NetWorthSection from "@/components/NetWorthSection";
 import RetirementSection from "@/components/RetirementSection";
 
 import SlidePanel from "@/components/SlidePanel";
@@ -15,56 +15,65 @@ import SetupPanel from "@/components/SetupPanel";
 export default function Dashboard() {
   const router = useRouter();
 
-  // session === undefined → loading
-  // session === null → no session
-  // session === object → authenticated
-  const [session, setSession] = useState(undefined);
+  const [session, setSession] = useState(null);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [showSetup, setShowSetup] = useState(false);
 
   useEffect(() => {
-    let alive = true;
+    let mounted = true;
 
-    const getSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!alive) return;
+    const checkSession = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      if (!mounted) return;
 
-      setSession(data.session);
+      if (error) {
+        console.error("Error getting session:", error);
+      }
+
+      const currentSession = data?.session ?? null;
+      setSession(currentSession);
+      setCheckingSession(false);
+
+      if (!currentSession) {
+        router.replace("/auth/sign-in");
+      }
     };
 
-    getSession();
+    checkSession();
 
+    // Listen for changes (sign in / sign out)
     const { data: subscription } = supabase.auth.onAuthStateChange(
       (_event, newSession) => {
-        if (!alive) return;
+        if (!mounted) return;
+
         setSession(newSession);
+
+        if (!newSession) {
+          router.replace("/auth/sign-in");
+        }
       }
     );
 
     return () => {
-      alive = false;
-      subscription.subscription.unsubscribe();
+      mounted = false;
+      subscription?.subscription?.unsubscribe();
     };
-  }, []);
+  }, [router]);
 
-  // ----------------------------
-  // Handle states safely
-  // ----------------------------
-
-  if (session === undefined) {
-    return <div className="p-10 text-center text-xl">Loading session…</div>;
+  // Still checking session
+  if (checkingSession) {
+    return <div className="p-10 text-center">Loading session…</div>;
   }
 
-  if (session === null) {
-    // No session — redirect AFTER render
-    router.replace("/auth/sign-in");
-    return <div className="p-10 text-center text-xl">Redirecting…</div>;
+  // No session (redirect is already triggered, but don't render dashboard)
+  if (!session) {
+    return <div className="p-10 text-center">Redirecting…</div>;
   }
 
-  // ----------------------------
-  // Authenticated Dashboard
-  // ----------------------------
+  // Has session → show dashboard
   return (
     <div className="min-h-screen bg-[#f8fafc] pb-20">
+      {/* Header */}
       <header className="flex items-center justify-between p-10 pb-0">
         <div>
           <h1 className="text-4xl font-bold text-[#1e293b]">Welcome back 👋</h1>
@@ -87,7 +96,7 @@ export default function Dashboard() {
       <NetWorthSection />
       <RetirementSection />
 
-      {/* SLIDE-IN PANEL */}
+      {/* Slide Panel */}
       <SlidePanel open={showSetup} onClose={() => setShowSetup(false)}>
         <SetupPanel onClose={() => setShowSetup(false)} />
       </SlidePanel>
