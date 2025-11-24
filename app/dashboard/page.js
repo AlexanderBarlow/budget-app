@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 import KPISection from "@/components/KPISection";
 import CashFlowSection from "@/components/CashFlowSection";
-import NetWorthSection from "@/components/NetWorthSection";
+import NetWorthSection from "@/components/NetWorth";
 import RetirementSection from "@/components/RetirementSection";
 
 import SlidePanel from "@/components/SlidePanel";
