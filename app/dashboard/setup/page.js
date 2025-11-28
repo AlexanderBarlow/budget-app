@@ -1,9 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
+import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
-import IncomeForm from "@/components/setup/IncomeForm";
-import ExpenseForm from "@/components/setup/ExpenseForm";
+
+// Lazy load the large forms only when needed
+const IncomeForm = dynamic(() => import("@/components/setup/IncomeForm"), {
+  ssr: false,
+  loading: () => <div>Loading income form…</div>,
+});
+const ExpenseForm = dynamic(() => import("@/components/setup/ExpenseForm"), {
+  ssr: false,
+  loading: () => <div>Loading expenses…</div>,
+});
 
 export default function SetupPage() {
   const [step, setStep] = useState(1);
@@ -19,7 +28,7 @@ export default function SetupPage() {
           FlowWise uses this info to personalize your dashboard.
         </p>
 
-        {/* Progress Bar */}
+        {/* Step Indicators */}
         <div className="flex justify-between mb-10">
           <StepItem number={1} label="Income" active={step === 1} />
           <StepItem number={2} label="Expenses" active={step === 2} />
@@ -27,14 +36,15 @@ export default function SetupPage() {
         </div>
 
         {/* Steps */}
-        {step === 1 && <IncomeForm onContinue={() => setStep(2)} />}
-
-        {step === 2 && (
-          <ExpenseForm
-            onBack={() => setStep(1)}
-            onContinue={() => setStep(3)}
-          />
-        )}
+        <Suspense fallback={<div>Loading…</div>}>
+          {step === 1 && <IncomeForm onContinue={() => setStep(2)} />}
+          {step === 2 && (
+            <ExpenseForm
+              onBack={() => setStep(1)}
+              onContinue={() => setStep(3)}
+            />
+          )}
+        </Suspense>
 
         {step === 3 && (
           <motion.div
@@ -66,9 +76,8 @@ function StepItem({ number, label, active }) {
   return (
     <div className="flex flex-col items-center text-center">
       <div
-        className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-white ${
-          active ? "bg-[#2dd4bf]" : "bg-[#cbd5e1]"
-        }`}
+        className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-white 
+        ${active ? "bg-[#2dd4bf]" : "bg-[#cbd5e1]"}`}
       >
         {number}
       </div>

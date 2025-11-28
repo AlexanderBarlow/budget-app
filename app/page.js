@@ -1,13 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-} from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip } from "recharts";
 
 // Import all your FlowWise sections
 import ParallaxBackground from "@/components/ParallaxBackground";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Plus, Trash } from "lucide-react";
 
@@ -8,38 +8,55 @@ export default function ExpenseForm({ onContinue, onBack }) {
   const [categories, setCategories] = useState([]);
   const [newCategory, setNewCategory] = useState("");
 
-  const addCategory = () => {
+  // Fast category add
+  const addCategory = useCallback(() => {
     if (!newCategory.trim()) return;
-    setCategories([...categories, { name: newCategory, expenses: [] }]);
+    setCategories((prev) => [
+      ...prev,
+      { name: newCategory.trim(), expenses: [] },
+    ]);
     setNewCategory("");
-  };
+  }, [newCategory]);
 
-  const addExpense = (index) => {
-    const expenseName = prompt("Expense name?");
-    const expenseAmount = prompt("Monthly cost?");
+  // Fast expense addition (no prompts)
+  const addExpense = useCallback((catIndex) => {
+    setCategories((prev) =>
+      prev.map((cat, i) =>
+        i === catIndex
+          ? {
+              ...cat,
+              expenses: [...cat.expenses, { name: "", amount: "" }],
+            }
+          : cat
+      )
+    );
+  }, []);
 
-    if (!expenseName || !expenseAmount) return;
+  // Editing expense fields
+  const updateExpense = useCallback((catIndex, expIndex, field, value) => {
+    setCategories((prev) =>
+      prev.map((cat, i) =>
+        i === catIndex
+          ? {
+              ...cat,
+              expenses: cat.expenses.map((exp, j) =>
+                j === expIndex ? { ...exp, [field]: value } : exp
+              ),
+            }
+          : cat
+      )
+    );
+  }, []);
 
-    const updated = [...categories];
-    updated[index].expenses.push({
-      name: expenseName,
-      amount: Number(expenseAmount),
-    });
-
-    setCategories(updated);
-  };
-
-  const deleteCategory = (index) => {
-    const updated = [...categories];
-    updated.splice(index, 1);
-    setCategories(updated);
-  };
+  const deleteCategory = useCallback((index) => {
+    setCategories((prev) => prev.filter((_c, i) => i !== index));
+  }, []);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <h2 className="text-2xl font-bold text-[#1e293b] mb-6">Expenses</h2>
 
-      {/* Category Input */}
+      {/* Add Category */}
       <div className="flex gap-3 mb-6">
         <input
           placeholder="Add a category (e.g. Housing)"
@@ -71,18 +88,31 @@ export default function ExpenseForm({ onContinue, onBack }) {
               </button>
             </div>
 
-            {/* Expense list */}
-            <ul className="mb-3">
-              {cat.expenses.map((e, i) => (
-                <li key={i} className="flex justify-between py-1">
-                  <span>{e.name}</span>
-                  <span className="font-semibold">${e.amount}</span>
-                </li>
-              ))}
-            </ul>
+            {/* Expenses */}
+            {cat.expenses.map((exp, i) => (
+              <div key={i} className="flex gap-3 mb-2">
+                <input
+                  placeholder="Expense name"
+                  className="flex-1 p-2 border rounded-lg bg-[#f8fafc]"
+                  value={exp.name}
+                  onChange={(e) =>
+                    updateExpense(index, i, "name", e.target.value)
+                  }
+                />
+                <input
+                  type="number"
+                  placeholder="$"
+                  className="w-24 p-2 border rounded-lg bg-[#f8fafc]"
+                  value={exp.amount}
+                  onChange={(e) =>
+                    updateExpense(index, i, "amount", e.target.value)
+                  }
+                />
+              </div>
+            ))}
 
             <button
-              className="text-sm text-[#3b82f6] underline"
+              className="text-sm text-[#3b82f6] underline mt-2"
               onClick={() => addExpense(index)}
             >
               + Add Expense
