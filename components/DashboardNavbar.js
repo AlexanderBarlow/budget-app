@@ -1,52 +1,62 @@
 "use client";
 
-import { useState } from "react";
 import { motion } from "framer-motion";
+import { useRouter, usePathname } from "next/navigation";
 
 const tabs = [
-    { id: "overview", label: "Overview" },
-    { id: "cashflow", label: "Cash Flow" },
-    { id: "expenses", label: "Expenses" },
-    { id: "profile", label: "Personal Data" },
+  { key: "overview", label: "Overview", path: "/dashboard" },
+  { key: "cashflow", label: "Cash Flow", path: "/dashboard/cashflow" },
+  { key: "expenses", label: "Expenses", path: "/dashboard/expenses" },
+  { key: "personal", label: "Personal", path: "/dashboard/profile" },
+  { key: "insights", label: "Insights", path: "/dashboard/insights" },
 ];
 
-export default function DashboardNav({ activeTab, setActiveTab }) {
-    return (
-        <motion.nav
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="
-         fixed top-20 left-1/2 -translate-x-1/2
-         z-40 bg-white/80 backdrop-blur-xl
-         shadow-xl rounded-2xl px-6 py-3
-         flex items-center gap-6 border border-gray-200
+export default function DashboardNav() {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  return (
+    <motion.nav
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="
+        fixed top-20 left-1/2 -translate-x-1/2
+        z-40 backdrop-blur-xl bg-white/30 
+        border border-white/40 shadow-2xl
+        rounded-2xl px-8 py-3 
+        flex items-center gap-6
       "
-        >
-            {tabs.map((tab) => {
-                const active = activeTab === tab.id;
+    >
+      {tabs.map((tab) => {
+        const active = pathname === tab.path;
 
-                return (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className="relative px-2 py-1 font-medium text-gray-700"
-                    >
-                        {/* Active highlight animation */}
-                        {active && (
-                            <motion.div
-                                layoutId="dashnav-pill"
-                                className="absolute inset-0 bg-gradient-to-r from-emerald-300 to-sky-300 rounded-lg -z-10 drop-shadow"
-                                transition={{ type: "spring", stiffness: 350, damping: 25 }}
-                            />
-                        )}
+        return (
+          <button
+            key={tab.key}
+            onClick={() => router.push(tab.path)}
+            className="relative px-3 py-1 font-medium text-gray-800"
+          >
+            {/* Animated pill for active state */}
+            {active && (
+              <motion.div
+                layoutId="dashboard-pill"
+                className="absolute inset-0 
+                  bg-white/60 backdrop-blur-xl
+                  rounded-lg shadow 
+                  -z-10"
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              />
+            )}
 
-                        <span className={active ? "text-gray-900 font-semibold" : ""}>
-                            {tab.label}
-                        </span>
-                    </button>
-                );
-            })}
-        </motion.nav>
-    );
+            <span
+              className={active ? "font-semibold text-gray-900" : "opacity-70"}
+            >
+              {tab.label}
+            </span>
+          </button>
+        );
+      })}
+    </motion.nav>
+  );
 }
