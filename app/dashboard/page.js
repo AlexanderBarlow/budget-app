@@ -3,15 +3,16 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 
-// Lazy-load heavy components (prevent Vercel memory crash)
+// Lazy load charts (corrected path)
 const KPISection = dynamic(() => import("@/components/KPISection"), {
   ssr: false,
 });
 const CashFlowSection = dynamic(() => import("@/components/CashFlowSection"), {
   ssr: false,
 });
-const NetWorthSection = dynamic(() => import("@/components/NetWorth"), {
+const NetWorthSection = dynamic(() => import("@/components/NetWorth.js"), {
   ssr: false,
 });
 const RetirementSection = dynamic(
@@ -19,79 +20,64 @@ const RetirementSection = dynamic(
   { ssr: false }
 );
 
-import dynamic from "next/dynamic";
-import SlidePanel from "@/components/SlidePanel";
-import SetupPanel from "@/components/SetupPanel";
+const SlidePanel = dynamic(() => import("@/components/SlidePanel"), {
+  ssr: false,
+});
+const SetupPanel = dynamic(() => import("@/components/SetupPanel"), {
+  ssr: false,
+});
 
 export default function Dashboard() {
   const router = useRouter();
 
-  // undefined = unknown (loading)
-  // null = not logged in
-  // object = logged in
-  const [session, setSession] = useState(undefined);
+  const [user, setUser] = useState(undefined);
   const [showSetup, setShowSetup] = useState(false);
 
+  console.log("Hit Dashboard");
+
   useEffect(() => {
+    console.log("Hit session check");
     let mounted = true;
 
     async function load() {
-      const { data } = await supabase.auth.getSession();
+      const { data } = await supabase.auth.getUser();
+      console.log("Supabase returned user:", data);
 
       if (!mounted) return;
 
-      const s = data.session;
-      setSession(s);
+      if (!data?.user) {
+        console.log("No user → redirect");
+        router.replace("/auth/sign-in");
+        return;
+      }
 
-      // redirect AFTER React hydrates
-      if (s === null) router.replace("/auth/sign-in");
+      setUser(data.user);
     }
 
     load();
 
-    const { data: subscription } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => {
-        if (!mounted) return;
+    const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
+      if (!mounted) return;
 
-        setSession(newSession);
-
-        if (!newSession) router.replace("/auth/sign-in");
+      if (!session?.user) {
+        router.replace("/auth/sign-in");
+      } else {
+        setUser(session.user);
       }
-    );
+    });
 
     return () => {
       mounted = false;
-      subscription.subscription.unsubscribe();
+      sub.subscription.unsubscribe();
     };
   }, [router]);
 
-  // --------------------------
-  // UI STATES
-  // --------------------------
-
-  if (session === undefined) {
-    return (
-      <div className="p-10 text-center text-lg text-[#475569]">
-        Loading session…
-      </div>
-    );
+  if (user === undefined) {
+    return <div className="p-10 text-center text-xl">Loading dashboard…</div>;
   }
-
-  if (session === null) {
-    return (
-      <div className="p-10 text-center text-lg text-[#475569]">
-        Redirecting…
-      </div>
-    );
-  }
-
-  // --------------------------
-  // LOGGED IN
-  // --------------------------
 
   return (
     <div className="min-h-screen bg-[#f8fafc] pb-20">
-      {/* Header */}
       <header className="flex items-center justify-between p-10 pb-0">
         <div>
           <h1 className="text-4xl font-bold text-[#1e293b]">Welcome back 👋</h1>
@@ -108,13 +94,12 @@ export default function Dashboard() {
         </button>
       </header>
 
-      {/* Dashboard Sections */}
+      {/* Lazy loaded sections */}
       <KPISection />
       <CashFlowSection />
       <NetWorthSection />
       <RetirementSection />
 
-      {/* Slide-in Panel */}
       <SlidePanel open={showSetup} onClose={() => setShowSetup(false)}>
         <SetupPanel onClose={() => setShowSetup(false)} />
       </SlidePanel>
