@@ -1,30 +1,33 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function SlidePanel({ open, onClose, children }) {
   return (
-    <>
-      {/* Dark overlay */}
+    <AnimatePresence>
       {open && (
-        <motion.div
-          onClick={onClose}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 0.5 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 z-40"
-        />
-      )}
+        <>
+          {/* Background overlay */}
+          <motion.div
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
+            onClick={onClose}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          />
 
-      {/* Slide-in panel */}
-      <motion.div
-        initial={{ x: "100%" }}
-        animate={{ x: open ? "0%" : "100%" }}
-        transition={{ type: "tween", duration: 0.35 }}
-        className="fixed top-0 right-0 h-full w-full md:w-[450px] bg-white z-50 shadow-2xl overflow-y-auto"
-      >
-        {children}
-      </motion.div>
-    </>
+          {/* Sliding panel */}
+          <motion.div
+            className="fixed right-0 top-0 h-full w-full sm:w-[450px] bg-white shadow-2xl z-50 p-6 overflow-y-auto"
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "tween", duration: 0.35 }}
+          >
+            {children}
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   );
 }
