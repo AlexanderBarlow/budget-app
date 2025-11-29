@@ -4,11 +4,12 @@ import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Plus, Trash } from "lucide-react";
 
-export default function ExpenseForm({ onContinue, onBack }) {
+export default function ExpenseForm({ userId, onContinue, onBack }) {
   const [categories, setCategories] = useState([]);
   const [newCategory, setNewCategory] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  // Fast category add
+  // Add category
   const addCategory = useCallback(() => {
     if (!newCategory.trim()) return;
     setCategories((prev) => [
@@ -18,21 +19,18 @@ export default function ExpenseForm({ onContinue, onBack }) {
     setNewCategory("");
   }, [newCategory]);
 
-  // Fast expense addition (no prompts)
+  // Add expense inside a category
   const addExpense = useCallback((catIndex) => {
     setCategories((prev) =>
       prev.map((cat, i) =>
         i === catIndex
-          ? {
-              ...cat,
-              expenses: [...cat.expenses, { name: "", amount: "" }],
-            }
+          ? { ...cat, expenses: [...cat.expenses, { name: "", amount: "" }] }
           : cat
       )
     );
   }, []);
 
-  // Editing expense fields
+  // Update expense field
   const updateExpense = useCallback((catIndex, expIndex, field, value) => {
     setCategories((prev) =>
       prev.map((cat, i) =>
@@ -48,9 +46,46 @@ export default function ExpenseForm({ onContinue, onBack }) {
     );
   }, []);
 
+  // Delete category
   const deleteCategory = useCallback((index) => {
     setCategories((prev) => prev.filter((_c, i) => i !== index));
   }, []);
+
+  // Submit API call
+  const handleSubmit = async () => {
+    if (!userId) {
+      alert("User not loaded.");
+      return;
+    }
+
+    if (categories.length === 0) {
+      alert("Add at least one category.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/expenses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          categories,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to save expenses.");
+      }
+
+      onContinue(); // Move to next step
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -88,7 +123,6 @@ export default function ExpenseForm({ onContinue, onBack }) {
               </button>
             </div>
 
-            {/* Expenses */}
             {cat.expenses.map((exp, i) => (
               <div key={i} className="flex gap-3 mb-2">
                 <input
@@ -131,10 +165,11 @@ export default function ExpenseForm({ onContinue, onBack }) {
         </button>
 
         <button
-          onClick={onContinue}
+          onClick={handleSubmit}
+          disabled={loading}
           className="px-6 py-2 bg-gradient-to-r from-[#2dd4bf] to-[#3b82f6] text-white rounded-lg"
         >
-          Continue
+          {loading ? "Saving..." : "Continue"}
         </button>
       </div>
     </motion.div>

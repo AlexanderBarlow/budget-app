@@ -2,20 +2,20 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
+import toast from "react-hot-toast";
 
-export default function IncomeForm({ onContinue }) {
+export default function IncomeForm({ userId, onContinue }) {
   const [incomeType, setIncomeType] = useState("SALARY");
   const [salary, setSalary] = useState("");
   const [hourlyRate, setHourlyRate] = useState("");
   const [hoursPerWeek, setHoursPerWeek] = useState("");
   const [payFrequency, setPayFrequency] = useState("BIWEEKLY");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Add validation here if needed
-
     const payload = {
+      userId,
       incomeType,
       salaryAnnual: incomeType === "SALARY" ? Number(salary) : null,
       hourlyRate: incomeType === "HOURLY" ? Number(hourlyRate) : null,
@@ -23,8 +23,20 @@ export default function IncomeForm({ onContinue }) {
       payFrequency,
     };
 
-    console.log("Income Data:", payload);
-    onContinue(payload);
+    const res = await fetch("/api/income", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      toast.error("Failed to save income. Try again.");
+      return;
+    }
+
+    toast.success("Income saved successfully! 🎉");
+
+    if (onContinue) onContinue(payload);
   };
 
   return (
@@ -36,7 +48,7 @@ export default function IncomeForm({ onContinue }) {
     >
       <h2 className="text-2xl font-bold text-[#1e293b]">Income</h2>
 
-      {/* Income Type */}
+      {/* Income Type Buttons */}
       <div className="flex gap-4">
         {["SALARY", "HOURLY"].map((type) => (
           <button
@@ -55,7 +67,7 @@ export default function IncomeForm({ onContinue }) {
         ))}
       </div>
 
-      {/* Salary Section */}
+      {/* Salary Input */}
       {incomeType === "SALARY" && (
         <div>
           <label className="block text-sm mb-1 text-[#475569]">
@@ -72,7 +84,7 @@ export default function IncomeForm({ onContinue }) {
         </div>
       )}
 
-      {/* Hourly Section */}
+      {/* Hourly Input */}
       {incomeType === "HOURLY" && (
         <>
           <div>
@@ -122,12 +134,12 @@ export default function IncomeForm({ onContinue }) {
         </select>
       </div>
 
-      {/* Continue Button */}
+      {/* Submit Button */}
       <button
         type="submit"
         className="w-full py-3 rounded-lg bg-gradient-to-r from-[#2dd4bf] to-[#3b82f6] text-white text-lg font-semibold shadow hover:opacity-90 transition"
       >
-        Continue
+        Save Income
       </button>
     </motion.form>
   );

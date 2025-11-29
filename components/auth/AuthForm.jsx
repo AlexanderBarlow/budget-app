@@ -16,7 +16,6 @@ export default function AuthForm({ mode }) {
   const isSignIn = mode === "sign-in";
   const isSignUp = mode === "sign-up";
 
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -26,17 +25,28 @@ export default function AuthForm({ mode }) {
       let result;
 
       if (isSignIn) {
-    result = await supabase.auth.signInWithPassword({ email, password });
-}
+        result = await supabase.auth.signInWithPassword({ email, password });
+      }
 
-if (isSignUp) {
-    result = await supabase.auth.signUp({ email, password });
+      if (isSignUp) {
+        result = await supabase.auth.signUp({ email, password });
 
-    await fetch("/api/create-user", {
-        method: "POST",
-        body: JSON.stringify({ email }),
-    });
-}
+        if (result.error) throw result.error;
+
+        const supabaseUser = result.data.user;
+
+        if (!supabaseUser) throw new Error("Could not create user");
+
+        await fetch("/api/create-user", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: supabaseUser.id, // SUPER IMPORTANT
+            email: supabaseUser.email,
+          }),
+        });
+      }
+
 
       if (result.error) throw result.error;
 
@@ -62,7 +72,6 @@ if (isSignUp) {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Email */}
         <div>
           <label className="text-sm text-[#475569] block mb-1">Email</label>
           <input
@@ -74,7 +83,6 @@ if (isSignUp) {
           />
         </div>
 
-        {/* Password */}
         <div>
           <label className="text-sm text-[#475569] block mb-1">Password</label>
           <input
@@ -86,7 +94,6 @@ if (isSignUp) {
           />
         </div>
 
-        {/* Submit */}
         <button
           type="submit"
           disabled={loading}
@@ -96,7 +103,6 @@ if (isSignUp) {
         </button>
       </form>
 
-      {/* Switch mode */}
       <p className="mt-4 text-center text-sm text-[#475569]">
         {isSignIn ? "Don't have an account?" : "Already have an account?"}
         <a
