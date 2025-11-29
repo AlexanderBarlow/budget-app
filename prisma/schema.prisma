@@ -20,19 +20,37 @@ model Income {
   id              String       @id @default(uuid())
   userId          String
   user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Primary job
   incomeType      IncomeType
   salaryAnnual    Int?
   hourlyRate      Decimal?
   hoursPerWeek    Decimal?
+  overtimeRate    Decimal?
+  overtimeHours   Decimal?
+  holidayRate     Decimal?
+  holidayHours    Decimal?
+
+  // Other earnings
+  bonuses         Decimal?
+  tips            Decimal?
+  commission      Decimal?
+
+  // Multiple income streams
+  incomeSource    String? // "Job #1", "Uber", "Freelance", "Rental", etc.
+
   payFrequency    PayFrequency
-  mostRecentPay   DateTime
+  mostRecentPay   DateTime   @default(now())
+
   grossPerPeriod  Decimal?
   netPerPeriod    Decimal?
-  deductionRate   Decimal?     
-  manualNetOverride Boolean    @default(false)
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  deductionRate   Decimal?
+  manualNetOverride Boolean  @default(false)
+
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 }
+
 
 model Expense {
   id          String    @id @default(uuid())
