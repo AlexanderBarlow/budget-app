@@ -1,6 +1,36 @@
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
+/* -----------------------------------------
+   GET – Fetch all income for a user
+------------------------------------------ */
+export async function GET(req) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get("userId");
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: "User ID is required." },
+        { status: 400 }
+      );
+    }
+
+    const incomes = await prisma.income.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return NextResponse.json(incomes, { status: 200 });
+  } catch (err) {
+    console.error("Income GET Error:", err);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
+}
+
+/* -----------------------------------------
+   POST – Create new income record
+------------------------------------------ */
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -10,12 +40,12 @@ export async function POST(req) {
       incomeSource,
       incomeType,
 
-      // Salary fields
+      // salary fields
       salaryAnnual,
       bonuses,
       commission,
 
-      // Hourly fields
+      // hourly fields
       hourlyRate,
       hoursPerWeek,
       overtimeRate,
@@ -27,7 +57,7 @@ export async function POST(req) {
       payFrequency,
     } = body;
 
-    // Basic validation
+    // Required fields
     if (!userId || !incomeType || !payFrequency) {
       return NextResponse.json(
         { error: "Missing required fields." },
@@ -35,20 +65,18 @@ export async function POST(req) {
       );
     }
 
-    // Create income record
     const income = await prisma.income.create({
       data: {
         userId,
-        incomeSource,
-
+        incomeSource: incomeSource || "Main Job",
         incomeType,
 
-        // Salary values
+        // Salary
         salaryAnnual: incomeType === "SALARY" ? salaryAnnual : null,
-        bonuses: incomeType === "SALARY" ? bonuses : null,
-        commission: incomeType === "SALARY" ? commission : null,
+        bonuses: bonuses ? Number(bonuses) : null,
+        commission: commission ? Number(commission) : null,
 
-        // Hourly values
+        // Hourly
         hourlyRate: incomeType === "HOURLY" ? hourlyRate : null,
         hoursPerWeek: incomeType === "HOURLY" ? hoursPerWeek : null,
         overtimeRate: incomeType === "HOURLY" ? overtimeRate : null,
