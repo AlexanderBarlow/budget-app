@@ -7,86 +7,152 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+//
+// =====================================
+// USER MODEL
+// =====================================
 model User {
   id          String            @id @default(uuid())
   email       String            @unique
   createdAt   DateTime          @default(now())
+
   incomes     Income[]
   expenses    Expense[]
-  categories  BudgetCategory[]
+  categories  ExpenseCategory[]
+  accounts    Account[]
 }
 
+//
+// =====================================
+// INCOME MODEL
+// =====================================
 model Income {
-  id              String       @id @default(uuid())
-  userId          String
-  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String        @id @default(uuid())
+  userId            String
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Primary job
-  incomeType      IncomeType
-  salaryAnnual    Int?
-  hourlyRate      Decimal?
-  hoursPerWeek    Decimal?
-  overtimeRate    Decimal?
-  overtimeHours   Decimal?
-  holidayRate     Decimal?
-  holidayHours    Decimal?
+  incomeSource      String
+  incomeType        IncomeType
 
-  // Other earnings
-  bonuses         Decimal?
-  tips            Decimal?
-  commission      Decimal?
+  salaryAnnual      Int?
+  hourlyRate        Decimal?
+  hoursPerWeek      Decimal?
+  overtimeRate      Decimal?
+  overtimeHours     Decimal?
+  holidayRate       Decimal?
+  holidayHours      Decimal?
+  bonuses           Decimal?
+  tips              Decimal?
+  commission        Decimal?
 
-  // Multiple income streams
-  incomeSource    String? // "Job #1", "Uber", "Freelance", "Rental", etc.
+  payFrequency      PayFrequency
 
-  payFrequency    PayFrequency
-  mostRecentPay   DateTime   @default(now())
+  mostRecentPay     DateTime?
+  previousPayDate   DateTime?
+  nextPayDate       DateTime?
+  predictedDates    Json?
 
-  grossPerPeriod  Decimal?
-  netPerPeriod    Decimal?
-  deductionRate   Decimal?
-  manualNetOverride Boolean  @default(false)
+  grossPerPeriod    Decimal?
+  netPerPeriod      Decimal?
+  deductionRate     Decimal?
+  manualNetOverride Boolean? @default(false)
 
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
+//
+// =====================================
+// EXPENSE CATEGORY MODEL
+// (User-defined + default categories)
+// =====================================
+model ExpenseCategory {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  name      String
+  color     String?
+  icon      String?
+  isDefault Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  expenses  Expense[]
+}
+
+//
+// =====================================
+// EXPENSE MODEL
+// =====================================
 model Expense {
-  id          String    @id @default(uuid())
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name        String
-  amount      Decimal
-  category    String
-  frequency   String?
-  isFixed     Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-}
-
-model BudgetCategory {
-  id            String   @id @default(uuid())
+  id            String    @id @default(uuid())
   userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Category Relation
+  categoryId    String?
+  category      ExpenseCategory? @relation(fields: [categoryId], references: [id])
+
   name          String
-  description   String?
-  percentage    Decimal
-  targetAmount  Decimal?
-  color         String?
-  isCustom      Boolean   @default(false)
+  amount        Decimal
+
+  frequency     ExpenseFrequency @default(MONTHLY)
+  billingDate   DateTime?
+  nextCharge    DateTime?
+  lastCharge    DateTime?
+
+  isFixed       Boolean   @default(true)
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
 
+//
+// =====================================
+// ACCOUNTS MODEL
+// =====================================
+model Account {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type          String                // Checking, Savings, Brokerage, etc.
+  institution   String?               // Chase, Fidelity, etc.
+  nickname      String?               // "Emergency Fund"
+  balance       Decimal
+  interestRate  Decimal?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+//
+// =====================================
+// ENUMS
+// =====================================
+
+// Income Types
 enum IncomeType {
   SALARY
   HOURLY
 }
 
+// Pay Frequencies
 enum PayFrequency {
   WEEKLY
   BIWEEKLY
   SEMIMONTHLY
   MONTHLY
+}
+
+// Recurring expense frequency
+enum ExpenseFrequency {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+  ONCE
 }

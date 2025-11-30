@@ -1,14 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 
-export default function IncomeForm({ userId, onContinue }) {
+// ⬇ NEW IMPORT
+import { predictNextPayDates } from "@/utils/payDatePredictor";
+
+const PASSIVE_SOURCES = [
+  "Rental Income",
+  "Investments / Dividends",
+  "Government Benefits",
+];
+
+export default function IncomeForm({ userId, onIncomeAdded, onContinue }) {
   const [incomeSource, setIncomeSource] = useState("Main Job");
+  const [customSource, setCustomSource] = useState("");
   const [incomeType, setIncomeType] = useState("SALARY");
 
-  // Salary fields
+  // Salary-ish fields
   const [salary, setSalary] = useState("");
   const [bonus, setBonus] = useState("");
   const [commission, setCommission] = useState("");
@@ -16,43 +26,83 @@ export default function IncomeForm({ userId, onContinue }) {
   // Hourly fields
   const [hourlyRate, setHourlyRate] = useState("");
   const [hoursPerWeek, setHoursPerWeek] = useState("");
-
-  // Overtime
   const [overtimeRate, setOvertimeRate] = useState("");
   const [overtimeHours, setOvertimeHours] = useState("");
-
-  // Holidays
   const [holidayRate, setHolidayRate] = useState("");
   const [holidayHours, setHolidayHours] = useState("");
-
-  // Other earnings
   const [tips, setTips] = useState("");
 
   const [payFrequency, setPayFrequency] = useState("BIWEEKLY");
 
+  // Pay date tracking
+  const [mostRecentPay, setMostRecentPay] = useState("");
+  const [previousPayDate, setPreviousPayDate] = useState("");
+
+  const isPassiveSource = PASSIVE_SOURCES.includes(incomeSource);
+  const showTypeToggle = !isPassiveSource;
+
+  useEffect(() => {
+    if (isPassiveSource && incomeType !== "SALARY") {
+      setIncomeType("SALARY");
+    }
+  }, [incomeSource]);
+
+  const effectiveSource =
+    incomeSource === "Other" ? customSource || "Other" : incomeSource;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!mostRecentPay) {
+      toast.error("Please enter the most recent payment date.");
+      return;
+    }
+
     const payload = {
       userId,
-      incomeSource,
+      incomeSource: effectiveSource,
       incomeType,
 
-      // salary fields
-      salaryAnnual: incomeType === "SALARY" ? Number(salary) : null,
-      bonuses: bonus ? Number(bonus) : null,
-      commission: commission ? Number(commission) : null,
+      salaryAnnual: incomeType === "SALARY" ? Number(salary) || null : null,
+      bonuses: !isPassiveSource ? Number(bonus) || null : null,
+      commission: !isPassiveSource ? Number(commission) || null : null,
 
-      // hourly fields
-      hourlyRate: incomeType === "HOURLY" ? Number(hourlyRate) : null,
-      hoursPerWeek: incomeType === "HOURLY" ? Number(hoursPerWeek) : null,
-      overtimeRate: incomeType === "HOURLY" ? Number(overtimeRate) : null,
-      overtimeHours: incomeType === "HOURLY" ? Number(overtimeHours) : null,
-      holidayRate: incomeType === "HOURLY" ? Number(holidayRate) : null,
-      holidayHours: incomeType === "HOURLY" ? Number(holidayHours) : null,
-      tips: incomeType === "HOURLY" ? Number(tips) : null,
+      hourlyRate:
+        !isPassiveSource && incomeType === "HOURLY"
+          ? Number(hourlyRate) || null
+          : null,
+      hoursPerWeek:
+        !isPassiveSource && incomeType === "HOURLY"
+          ? Number(hoursPerWeek) || null
+          : null,
+
+      overtimeRate:
+        !isPassiveSource && incomeType === "HOURLY"
+          ? Number(overtimeRate) || null
+          : null,
+      overtimeHours:
+        !isPassiveSource && incomeType === "HOURLY"
+          ? Number(overtimeHours) || null
+          : null,
+
+      holidayRate:
+        !isPassiveSource && incomeType === "HOURLY"
+          ? Number(holidayRate) || null
+          : null,
+      holidayHours:
+        !isPassiveSource && incomeType === "HOURLY"
+          ? Number(holidayHours) || null
+          : null,
+
+      tips:
+        !isPassiveSource && incomeType === "HOURLY"
+          ? Number(tips) || null
+          : null,
 
       payFrequency,
+
+      mostRecentPay: mostRecentPay ? new Date(mostRecentPay) : null,
+      previousPayDate: previousPayDate ? new Date(previousPayDate) : null,
     };
 
     const res = await fetch("/api/income", {
@@ -62,11 +112,22 @@ export default function IncomeForm({ userId, onContinue }) {
     });
 
     if (!res.ok) {
-      toast.error("Failed to save income. Try again.");
+      toast.error("Failed to save income.");
       return;
     }
 
-    toast.success("Income saved successfully! 🎉");
+    toast.success("Income saved!");
+
+    // ⬇⬇ NEW: AUTO-PREDICT FUTURE PAYDATES
+    const predicted = predictNextPayDates({
+      mostRecentPay,
+      previousPayDate,
+      payFrequency,
+      count: 12,
+    });
+
+    // Send predictions to parent
+    if (onIncomeAdded) onIncomeAdded(predicted);
 
     if (onContinue) onContinue(payload);
   };
@@ -80,7 +141,7 @@ export default function IncomeForm({ userId, onContinue }) {
     >
       <h2 className="text-2xl font-bold text-[#1e293b]">Income Details</h2>
 
-      {/* Income Source */}
+      {/* INCOME SOURCE */}
       <div>
         <label className="block text-sm mb-1 text-[#475569]">
           Income Source
@@ -99,181 +160,144 @@ export default function IncomeForm({ userId, onContinue }) {
           <option>Government Benefits</option>
           <option>Other</option>
         </select>
+
+        {incomeSource === "Other" && (
+          <motion.input
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mt-3 w-full p-3 rounded-lg border bg-[#f8fafc]"
+            placeholder="Describe this income source..."
+            value={customSource}
+            onChange={(e) => setCustomSource(e.target.value)}
+          />
+        )}
       </div>
 
-      {/* Income Type */}
-      <div className="flex gap-4">
-        {["SALARY", "HOURLY"].map((type) => (
-          <button
-            key={type}
-            type="button"
-            onClick={() => setIncomeType(type)}
-            className={`flex-1 py-3 rounded-lg border  
-              ${
-                incomeType === type
+      {/* TYPE TOGGLE */}
+      {showTypeToggle && (
+        <div className="flex gap-4">
+          {["SALARY", "HOURLY"].map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setIncomeType(t)}
+              className={`flex-1 py-3 rounded-lg border ${
+                incomeType === t
                   ? "bg-[#2dd4bf] text-white border-[#2dd4bf]"
                   : "bg-[#f1f5f9] text-[#1e293b] border-[#d1d5db]"
               }`}
-          >
-            {type === "SALARY" ? "Salary" : "Hourly"}
-          </button>
-        ))}
+            >
+              {t === "SALARY" ? "Salary" : "Hourly"}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* SALARY BLOCK */}
+      {incomeType === "SALARY" && (
+        <div className="p-4 rounded-xl border bg-[#f8fafc] space-y-4">
+          <Input
+            label={
+              isPassiveSource
+                ? "Expected Annual Amount ($)"
+                : "Annual Salary ($)"
+            }
+            value={salary}
+            setValue={setSalary}
+            required
+          />
+
+          {!isPassiveSource && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input label="Bonus ($/yr)" value={bonus} setValue={setBonus} />
+              <Input
+                label="Commission ($/mo)"
+                value={commission}
+                setValue={setCommission}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* HOURLY BLOCK */}
+      {!isPassiveSource && incomeType === "HOURLY" && (
+        <div className="p-4 rounded-xl border bg-[#f8fafc] space-y-6">
+          <Input
+            label="Hourly Rate ($)"
+            value={hourlyRate}
+            setValue={setHourlyRate}
+            required
+          />
+
+          <Input
+            label="Hours per Week"
+            value={hoursPerWeek}
+            setValue={setHoursPerWeek}
+            required
+          />
+
+          <Section title="Overtime">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Overtime Rate ($)"
+                value={overtimeRate}
+                setValue={setOvertimeRate}
+              />
+              <Input
+                label="Overtime Hours (weekly)"
+                value={overtimeHours}
+                setValue={setOvertimeHours}
+              />
+            </div>
+          </Section>
+
+          <Section title="Holiday Pay">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Holiday Rate ($)"
+                value={holidayRate}
+                setValue={setHolidayRate}
+              />
+              <Input
+                label="Holiday Hours (yearly)"
+                value={holidayHours}
+                setValue={setHolidayHours}
+              />
+            </div>
+          </Section>
+
+          <Input label="Tips ($/mo)" value={tips} setValue={setTips} />
+        </div>
+      )}
+
+      {/* PAY DATE TRACKING */}
+      <div className="bg-[#f0fdfa] border border-emerald-200 p-4 rounded-xl space-y-4">
+        <h3 className="font-semibold text-[#0f766e]">
+          Pay Date Tracking (for predictions)
+        </h3>
+
+        <Input
+          label="Most Recent Pay Date"
+          type="date"
+          value={mostRecentPay}
+          setValue={setMostRecentPay}
+          required
+        />
+
+        <Input
+          label="Previous Pay Date (optional)"
+          type="date"
+          value={previousPayDate}
+          setValue={setPreviousPayDate}
+        />
+
+        <p className="text-xs text-[#0f766e]">
+          Providing two dates allows us to compute your pay cycle accurately.
+        </p>
       </div>
 
-      {/* Salary Section */}
-      {incomeType === "SALARY" && (
-        <>
-          <div>
-            <label className="block text-sm mb-1 text-[#475569]">
-              Annual Salary ($)
-            </label>
-            <input
-              type="number"
-              required
-              value={salary}
-              onChange={(e) => setSalary(e.target.value)}
-              className="w-full p-3 rounded-lg border bg-[#f8fafc]"
-              placeholder="e.g. 65000"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm mb-1 text-[#475569]">
-                Expected Bonus ($/yr)
-              </label>
-              <input
-                type="number"
-                value={bonus}
-                onChange={(e) => setBonus(e.target.value)}
-                className="w-full p-3 rounded-lg border bg-[#f8fafc]"
-                placeholder="e.g. 2000"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm mb-1 text-[#475569]">
-                Commission ($/mo)
-              </label>
-              <input
-                type="number"
-                value={commission}
-                onChange={(e) => setCommission(e.target.value)}
-                className="w-full p-3 rounded-lg border bg-[#f8fafc]"
-                placeholder="e.g. 500"
-              />
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Hourly Section */}
-      {incomeType === "HOURLY" && (
-        <>
-          {/* Base hourly */}
-          <div>
-            <label className="block text-sm mb-1 text-[#475569]">
-              Hourly Rate ($)
-            </label>
-            <input
-              type="number"
-              required
-              value={hourlyRate}
-              onChange={(e) => setHourlyRate(e.target.value)}
-              className="w-full p-3 rounded-lg border bg-[#f8fafc]"
-              placeholder="e.g. 18.50"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm mb-1 text-[#475569]">
-              Hours per Week
-            </label>
-            <input
-              type="number"
-              required
-              value={hoursPerWeek}
-              onChange={(e) => setHoursPerWeek(e.target.value)}
-              className="w-full p-3 rounded-lg border bg-[#f8fafc]"
-              placeholder="e.g. 40"
-            />
-          </div>
-
-          {/* Overtime */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm mb-1 text-[#475569]">
-                Overtime Rate ($)
-              </label>
-              <input
-                type="number"
-                value={overtimeRate}
-                onChange={(e) => setOvertimeRate(e.target.value)}
-                className="w-full p-3 rounded-lg border bg-[#f8fafc]"
-                placeholder="e.g. 27.75"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm mb-1 text-[#475569]">
-                Overtime Hours (weekly)
-              </label>
-              <input
-                type="number"
-                value={overtimeHours}
-                onChange={(e) => setOvertimeHours(e.target.value)}
-                className="w-full p-3 rounded-lg border bg-[#f8fafc]"
-                placeholder="e.g. 5"
-              />
-            </div>
-          </div>
-
-          {/* Holiday */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm mb-1 text-[#475569]">
-                Holiday Rate ($)
-              </label>
-              <input
-                type="number"
-                value={holidayRate}
-                onChange={(e) => setHolidayRate(e.target.value)}
-                className="w-full p-3 rounded-lg border bg-[#f8fafc]"
-                placeholder="e.g. 36.00"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm mb-1 text-[#475569]">
-                Holiday Hours (per year)
-              </label>
-              <input
-                type="number"
-                value={holidayHours}
-                onChange={(e) => setHolidayHours(e.target.value)}
-                className="w-full p-3 rounded-lg border bg-[#f8fafc]"
-                placeholder="e.g. 16"
-              />
-            </div>
-          </div>
-
-          {/* Tips */}
-          <div>
-            <label className="block text-sm mb-1 text-[#475569]">
-              Tips ($/mo)
-            </label>
-            <input
-              type="number"
-              value={tips}
-              onChange={(e) => setTips(e.target.value)}
-              className="w-full p-3 rounded-lg border bg-[#f8fafc]"
-              placeholder="e.g. 150"
-            />
-          </div>
-        </>
-      )}
-
-      {/* Pay Frequency */}
+      {/* PAY FREQUENCY */}
       <div>
         <label className="block text-sm mb-1 text-[#475569]">
           Pay Frequency
@@ -290,7 +314,7 @@ export default function IncomeForm({ userId, onContinue }) {
         </select>
       </div>
 
-      {/* Submit */}
+      {/* SUBMIT BUTTON */}
       <button
         type="submit"
         className="w-full py-3 rounded-lg bg-gradient-to-r from-[#2dd4bf] to-[#3b82f6] text-white text-lg font-semibold shadow hover:opacity-90 transition"
@@ -298,5 +322,38 @@ export default function IncomeForm({ userId, onContinue }) {
         Save Income
       </button>
     </motion.form>
+  );
+}
+
+/* INPUT COMPONENT */
+function Input({
+  label,
+  value,
+  setValue,
+  required,
+  placeholder,
+  type = "number",
+}) {
+  return (
+    <div>
+      <label className="block text-sm mb-1 text-[#475569]">{label}</label>
+      <input
+        type={type}
+        required={required}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        className="w-full p-3 rounded-lg border bg-white"
+        placeholder={placeholder}
+      />
+    </div>
+  );
+}
+
+function Section({ title, children }) {
+  return (
+    <div className="space-y-2">
+      <p className="font-medium text-[#1e293b]">{title}</p>
+      {children}
+    </div>
   );
 }

@@ -1,34 +1,58 @@
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
+/* ============================
+   GET — Fetch all categories
+=============================== */
+export async function GET(req) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get("userId");
+
+    if (!userId) {
+      return NextResponse.json({ error: "Missing userId" }, { status: 400 });
+    }
+
+    const categories = await prisma.expenseCategory.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return NextResponse.json(categories, { status: 200 });
+  } catch (err) {
+    console.error("GET /categories Error:", err);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
+}
+
+/* ============================
+   POST — Create a new category
+=============================== */
 export async function POST(req) {
   try {
     const body = await req.json();
-    const { userId, categories } = body;
+    const { userId, name, color, icon } = body;
 
-    if (!userId || !categories) {
+    if (!userId || !name) {
       return NextResponse.json(
-        { error: "Missing userId or categories" },
+        { error: "userId and name are required" },
         { status: 400 }
       );
     }
 
-    const categoryData = categories.map((cat) => ({
-      userId,
-      name: cat.name,
-      percentage: cat.percentage ?? 0,
-      targetAmount: null,
-      color: cat.color ?? null,
-      isCustom: true,
-    }));
-
-    const created = await prisma.budgetCategory.createMany({
-      data: categoryData,
+    const category = await prisma.expenseCategory.create({
+      data: {
+        userId,
+        name,
+        color: color || null,
+        icon: icon || null,
+        isDefault: false,
+      },
     });
 
-    return NextResponse.json({ count: created.count }, { status: 201 });
+    return NextResponse.json(category, { status: 201 });
   } catch (err) {
-    console.error("Category API Error:", err);
+    console.error("POST /categories Error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

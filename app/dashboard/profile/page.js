@@ -12,6 +12,10 @@ export default function PersonalPage() {
   const [userId, setUserId] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // NEW: reload trigger when new income is added
+  const [reloadIncome, setReloadIncome] = useState(false);
+  const refreshIncome = () => setReloadIncome((prev) => !prev);
+
   // Load the logged-in user
   useEffect(() => {
     async function loadUser() {
@@ -87,7 +91,7 @@ export default function PersonalPage() {
               <h2 className="text-xl font-semibold text-[#1e293b] mb-3">
                 Your Income Sources
               </h2>
-              <IncomeOverview userId={userId} />
+              <IncomeOverview userId={userId} reload={reloadIncome} />
             </section>
 
             <hr className="border-gray-200" />
@@ -97,7 +101,11 @@ export default function PersonalPage() {
               <h2 className="text-xl font-semibold text-[#1e293b] mb-3">
                 Add New Income
               </h2>
-              <IncomeForm userId={userId} onContinue={() => {}} />
+              <IncomeForm
+                userId={userId}
+                onIncomeAdded={refreshIncome}
+                onContinue={() => {}}
+              />
             </section>
           </>
         )}

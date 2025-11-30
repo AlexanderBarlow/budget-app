@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { predictNextPayDates } from "@/utils/payDatePredictor";
 
 /* -----------------------------------------
    GET – Fetch all income for a user
@@ -21,7 +22,18 @@ export async function GET(req) {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(incomes, { status: 200 });
+    // Attach predicted pay dates using helper
+    const enriched = incomes.map((i) => ({
+      ...i,
+      predictedDates: predictNextPayDates({
+        mostRecentPay: i.mostRecentPay,
+        previousPayDate: i.previousPayDate,
+        payFrequency: i.payFrequency,
+        count: 12,
+      }),
+    }));
+
+    return NextResponse.json(enriched, { status: 200 });
   } catch (err) {
     console.error("Income GET Error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
@@ -35,58 +47,31 @@ export async function POST(req) {
   try {
     const body = await req.json();
 
-    const {
-      userId,
-      incomeSource,
-      incomeType,
-
-      // salary fields
-      salaryAnnual,
-      bonuses,
-      commission,
-
-      // hourly fields
-      hourlyRate,
-      hoursPerWeek,
-      overtimeRate,
-      overtimeHours,
-      holidayRate,
-      holidayHours,
-      tips,
-
-      payFrequency,
-    } = body;
-
-    // Required fields
-    if (!userId || !incomeType || !payFrequency) {
-      return NextResponse.json(
-        { error: "Missing required fields." },
-        { status: 400 }
-      );
-    }
-
     const income = await prisma.income.create({
       data: {
-        userId,
-        incomeSource: incomeSource || "Main Job",
-        incomeType,
+        userId: body.userId,
+        incomeSource: body.incomeSource || "Main Job",
+        incomeType: body.incomeType,
 
-        // Salary
-        salaryAnnual: incomeType === "SALARY" ? salaryAnnual : null,
-        bonuses: bonuses ? Number(bonuses) : null,
-        commission: commission ? Number(commission) : null,
+        salaryAnnual: body.salaryAnnual,
+        bonuses: body.bonuses,
+        commission: body.commission,
 
-        // Hourly
-        hourlyRate: incomeType === "HOURLY" ? hourlyRate : null,
-        hoursPerWeek: incomeType === "HOURLY" ? hoursPerWeek : null,
-        overtimeRate: incomeType === "HOURLY" ? overtimeRate : null,
-        overtimeHours: incomeType === "HOURLY" ? overtimeHours : null,
-        holidayRate: incomeType === "HOURLY" ? holidayRate : null,
-        holidayHours: incomeType === "HOURLY" ? holidayHours : null,
-        tips: incomeType === "HOURLY" ? tips : null,
+        hourlyRate: body.hourlyRate,
+        hoursPerWeek: body.hoursPerWeek,
+        overtimeRate: body.overtimeRate,
+        overtimeHours: body.overtimeHours,
+        holidayRate: body.holidayRate,
+        holidayHours: body.holidayHours,
+        tips: body.tips,
 
-        payFrequency,
-        mostRecentPay: new Date(),
+        payFrequency: body.payFrequency,
+
+        mostRecentPay: body.mostRecentPay ? new Date(body.mostRecentPay) : null,
+
+        previousPayDate: body.previousPayDate
+          ? new Date(body.previousPayDate)
+          : null,
       },
     });
 

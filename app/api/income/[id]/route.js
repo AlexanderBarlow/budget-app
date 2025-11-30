@@ -1,23 +1,51 @@
-import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
 
-export async function GET(req) {
+// ------- UPDATE INCOME -------
+export async function PATCH(req, context) {
+  const { params } = await context;
+  const realParams = await params; // <-- FIX
+  const incomeId = realParams.id;
+
   try {
-    const { searchParams } = new URL(req.url);
-    const userId = searchParams.get("userId");
+    const data = await req.json();
 
-    if (!userId) {
-      return NextResponse.json({ error: "User ID required." }, { status: 400 });
-    }
-
-    const incomes = await prisma.income.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
+    const updated = await prisma.Income.update({
+      where: { id: incomeId },
+      data,
     });
 
-    return NextResponse.json(incomes);
+    return NextResponse.json(updated);
   } catch (err) {
-    console.error("Income GET Error:", err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    console.error("Income PATCH Error:", err);
+    return NextResponse.json(
+      { error: "Failed to update income" },
+      { status: 500 }
+    );
+  }
+}
+
+// ------- DELETE INCOME -------
+export async function DELETE(req, context) {
+  const { params } = await context;
+  const realParams = await params; // <-- FIX
+  const incomeId = realParams.id;
+
+  if (!incomeId) {
+    return NextResponse.json({ error: "Missing income ID." }, { status: 400 });
+  }
+
+  try {
+    await prisma.Income.delete({
+      where: { id: incomeId },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("Income DELETE Error:", err);
+    return NextResponse.json(
+      { error: "Failed to delete income" },
+      { status: 500 }
+    );
   }
 }
