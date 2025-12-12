@@ -2,19 +2,13 @@ import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { predictNextPayDates } from "@/utils/payDatePredictor";
 
-/* -----------------------------------------
-   GET – Fetch all income for a user
------------------------------------------- */
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
 
     if (!userId) {
-      return NextResponse.json(
-        { error: "User ID is required." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "User ID required" }, { status: 400 });
     }
 
     const incomes = await prisma.income.findMany({
@@ -22,27 +16,13 @@ export async function GET(req) {
       orderBy: { createdAt: "desc" },
     });
 
-    // Attach predicted pay dates using helper
-    const enriched = incomes.map((i) => ({
-      ...i,
-      predictedDates: predictNextPayDates({
-        mostRecentPay: i.mostRecentPay,
-        previousPayDate: i.previousPayDate,
-        payFrequency: i.payFrequency,
-        count: 12,
-      }),
-    }));
-
-    return NextResponse.json(enriched, { status: 200 });
+    return NextResponse.json(incomes);
   } catch (err) {
     console.error("Income GET Error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 
-/* -----------------------------------------
-   POST – Create new income record
------------------------------------------- */
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -50,34 +30,23 @@ export async function POST(req) {
     const income = await prisma.income.create({
       data: {
         userId: body.userId,
-        incomeSource: body.incomeSource || "Main Job",
-        incomeType: body.incomeType,
-
-        salaryAnnual: body.salaryAnnual,
-        bonuses: body.bonuses,
-        commission: body.commission,
-
-        hourlyRate: body.hourlyRate,
-        hoursPerWeek: body.hoursPerWeek,
-        overtimeRate: body.overtimeRate,
-        overtimeHours: body.overtimeHours,
-        holidayRate: body.holidayRate,
-        holidayHours: body.holidayHours,
-        tips: body.tips,
-
+        source: body.source,
+        type: body.type,
         payFrequency: body.payFrequency,
 
-        mostRecentPay: body.mostRecentPay ? new Date(body.mostRecentPay) : null,
+        grossPerPeriod: body.grossPerPeriod,
+        netPerPeriod: body.netPerPeriod,
+        manualOverride: body.manualOverride,
 
-        previousPayDate: body.previousPayDate
-          ? new Date(body.previousPayDate)
-          : null,
+        lastPaid: body.lastPaid,
+        nextExpected: body.nextExpected,
+        predictedDates: body.predictedDates,
       },
     });
 
     return NextResponse.json(income, { status: 201 });
   } catch (err) {
-    console.error("Income API Error:", err);
+    console.error("Income POST Error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

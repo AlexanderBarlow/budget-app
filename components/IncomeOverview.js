@@ -10,54 +10,56 @@ export default function IncomeOverview({ userId, reload }) {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
 
-  // Load income records
-  const loadIncome = async () => {
-    const res = await fetch(`/api/income?userId=${userId}`);
-    const data = await res.json();
-    setIncomes(data || []);
-    setLoading(false);
-  };
+  /* ---------------- Load Income ---------------- */
+  async function loadIncome() {
+    try {
+      const res = await fetch(`/api/income?userId=${userId}`);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setIncomes(data || []);
+    } catch {
+      toast.error("Failed to load income");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    loadIncome();
-  }, [userId, reload]); // <-- reload triggers refresh
+    if (userId) loadIncome();
+  }, [userId, reload]);
 
-  // DELETE Income
-  const handleDelete = async (id) => {
-    const confirmDelete = window.confirm(
-      "Are you sure you want to delete this income source?"
-    );
-    if (!confirmDelete) return;
+  /* ---------------- Delete ---------------- */
+  async function handleDelete(id) {
+    if (!confirm("Delete this income source?")) return;
 
     const res = await fetch(`/api/income/${id}`, { method: "DELETE" });
+    if (!res.ok) return toast.error("Delete failed");
 
-    if (!res.ok) return toast.error("Failed to delete income.");
-
-    toast.success("Income deleted.");
+    toast.success("Income deleted");
     loadIncome();
-  };
+  }
 
-  // SAVE Edits
-  const handleSaveEdit = async () => {
+  /* ---------------- Save Edit ---------------- */
+  async function handleSaveEdit() {
     const res = await fetch(`/api/income/${editing.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(editing),
     });
 
-    if (!res.ok) return toast.error("Failed to update.");
+    if (!res.ok) return toast.error("Update failed");
 
-    toast.success("Income updated.");
+    toast.success("Income updated");
     setEditing(null);
     loadIncome();
-  };
+  }
 
   if (loading) return <p className="text-gray-500">Loading income…</p>;
 
   if (!incomes.length)
     return (
       <p className="text-gray-500 text-center">
-        No income added yet. Add your first income source!
+        No income sources yet. Add one to get started.
       </p>
     );
 
@@ -69,84 +71,71 @@ export default function IncomeOverview({ userId, reload }) {
             key={income.id}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl border bg-white shadow p-5"
+            className="rounded-2xl border bg-white shadow p-6"
           >
-            {/* Header */}
-            <div className="flex justify-between items-center mb-4">
+            {/* HEADER */}
+            <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="text-lg font-semibold text-[#1e293b]">
-                  {income.incomeSource || "Income Source"}
+                  {income.source}
                 </p>
-                <p className="text-sm text-gray-500">
-                  {income.incomeType === "SALARY" ? "Salary" : "Hourly"}
+                <p className="text-sm text-gray-500 capitalize">
+                  {income.type.toLowerCase()} •{" "}
+                  {income.payFrequency.replace("_", " ").toLowerCase()}
                 </p>
               </div>
 
               <div className="flex gap-3">
                 <button
-                  className="text-blue-500 flex items-center gap-1"
-                  onClick={() => setEditing(income)}
+                  onClick={() => setEditing({ ...income })}
+                  className="text-blue-600"
                 >
                   <Edit size={18} />
                 </button>
 
                 <button
-                  className="text-red-500 flex items-center gap-1"
                   onClick={() => handleDelete(income.id)}
+                  className="text-red-600"
                 >
                   <Trash size={18} />
                 </button>
               </div>
             </div>
 
-            <IncomeField
-              label="Pay Frequency"
-              value={income.payFrequency.replace("_", " ")}
-            />
+            {/* FINANCIALS */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <IncomeField
+                label="Gross Per Period"
+                value={income.grossPerPeriod}
+              />
+              <IncomeField label="Net Per Period" value={income.netPerPeriod} />
+            </div>
 
-            {/* Salary Details */}
-            {income.incomeType === "SALARY" && (
-              <div className="mt-4 space-y-2">
-                <IncomeField
-                  label="Annual Salary"
-                  value={income.salaryAnnual}
-                />
-                {income.bonuses && (
-                  <IncomeField label="Bonuses" value={income.bonuses} />
-                )}
-                {income.commission && (
-                  <IncomeField label="Commission" value={income.commission} />
-                )}
-              </div>
-            )}
+            {/* DATES */}
+            <div className="mt-4 space-y-2 text-sm text-gray-600">
+              {income.lastPaid && (
+                <p>
+                  Last Paid:{" "}
+                  <span className="font-medium">
+                    {new Date(income.lastPaid).toLocaleDateString()}
+                  </span>
+                </p>
+              )}
 
-            {/* Hourly Details */}
-            {income.incomeType === "HOURLY" && (
-              <div className="mt-4 space-y-2">
-                <IncomeField label="Hourly Rate" value={income.hourlyRate} />
-                <IncomeField
-                  label="Hours per Week"
-                  value={income.hoursPerWeek}
-                />
-                {income.overtimeRate && (
-                  <>
-                    <IncomeField
-                      label="Overtime Rate"
-                      value={income.overtimeRate}
-                    />
-                    <IncomeField
-                      label="Overtime Hours"
-                      value={income.overtimeHours}
-                    />
-                  </>
-                )}
-              </div>
-            )}
+              {income.nextExpected && (
+                <p>
+                  Next Expected:{" "}
+                  <span className="font-medium text-emerald-600">
+                    {new Date(income.nextExpected).toLocaleDateString()}
+                  </span>
+                </p>
+              )}
+            </div>
           </motion.div>
         ))}
       </div>
 
-      {/* EDIT MODAL */}
+      {/* ---------------- EDIT MODAL ---------------- */}
       {editing && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -158,48 +147,72 @@ export default function IncomeOverview({ userId, reload }) {
             animate={{ y: 0 }}
             className="bg-white w-full max-w-lg p-6 rounded-t-3xl shadow-xl space-y-4"
           >
-            <h3 className="text-xl font-semibold">Edit Income Source</h3>
+            <h3 className="text-xl font-semibold">Edit Income</h3>
 
-            <div>
-              <label className="text-sm text-gray-600">Income Source</label>
+            <Input
+              label="Source"
+              value={editing.source}
+              onChange={(v) => setEditing({ ...editing, source: v })}
+            />
+
+            <Select
+              label="Type"
+              value={editing.type}
+              options={["SALARY", "HOURLY"]}
+              onChange={(v) => setEditing({ ...editing, type: v })}
+            />
+
+            <Select
+              label="Pay Frequency"
+              value={editing.payFrequency}
+              options={["WEEKLY", "BIWEEKLY", "SEMIMONTHLY", "MONTHLY"]}
+              onChange={(v) => setEditing({ ...editing, payFrequency: v })}
+            />
+
+            <Input
+              label="Gross Per Period"
+              type="number"
+              value={editing.grossPerPeriod ?? ""}
+              onChange={(v) =>
+                setEditing({ ...editing, grossPerPeriod: Number(v) })
+              }
+            />
+
+            <Input
+              label="Net Per Period"
+              type="number"
+              value={editing.netPerPeriod ?? ""}
+              onChange={(v) =>
+                setEditing({ ...editing, netPerPeriod: Number(v) })
+              }
+            />
+
+            <label className="flex items-center gap-2 text-sm">
               <input
-                className="w-full p-2 border rounded-lg"
-                value={editing.incomeSource}
+                type="checkbox"
+                checked={editing.manualOverride}
                 onChange={(e) =>
-                  setEditing({ ...editing, incomeSource: e.target.value })
+                  setEditing({
+                    ...editing,
+                    manualOverride: e.target.checked,
+                  })
                 }
               />
-            </div>
+              Manual net override
+            </label>
 
-            <div>
-              <label className="text-sm text-gray-600">Pay Frequency</label>
-              <select
-                className="w-full p-2 border rounded-lg"
-                value={editing.payFrequency}
-                onChange={(e) =>
-                  setEditing({ ...editing, payFrequency: e.target.value })
-                }
-              >
-                <option value="WEEKLY">Weekly</option>
-                <option value="BIWEEKLY">Biweekly</option>
-                <option value="SEMIMONTHLY">Semi-Monthly</option>
-                <option value="MONTHLY">Monthly</option>
-              </select>
-            </div>
-
-            <div className="flex justify-between gap-4 pt-3">
+            <div className="flex gap-4 pt-4">
               <button
                 onClick={() => setEditing(null)}
                 className="flex-1 py-2 rounded-xl bg-gray-200"
               >
                 Cancel
               </button>
-
               <button
                 onClick={handleSaveEdit}
-                className="flex-1 py-2 rounded-xl bg-blue-500 text-white"
+                className="flex-1 py-2 rounded-xl bg-emerald-500 text-white"
               >
-                Save Changes
+                Save
               </button>
             </div>
           </motion.div>
@@ -209,15 +222,48 @@ export default function IncomeOverview({ userId, reload }) {
   );
 }
 
+/* ---------------- Helpers ---------------- */
+
 function IncomeField({ label, value }) {
   return (
-    <div className="flex justify-between">
-      <p className="text-sm text-gray-600">{label}</p>
-      <p className="font-medium text-gray-900">
-        {typeof value === "number"
-          ? "$" + Number(value).toLocaleString()
-          : value}
-      </p>
+    <div className="flex justify-between border rounded-lg px-4 py-2">
+      <span className="text-sm text-gray-600">{label}</span>
+      <span className="font-semibold text-gray-900">
+        {value != null ? `$${Number(value).toLocaleString()}` : "—"}
+      </span>
+    </div>
+  );
+}
+
+function Input({ label, value, onChange, type = "text" }) {
+  return (
+    <div>
+      <label className="text-sm text-gray-600">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full p-3 border rounded-lg"
+      />
+    </div>
+  );
+}
+
+function Select({ label, value, options, onChange }) {
+  return (
+    <div>
+      <label className="text-sm text-gray-600">{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full p-3 border rounded-lg"
+      >
+        {options.map((o) => (
+          <option key={o} value={o}>
+            {o.replace("_", " ")}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }

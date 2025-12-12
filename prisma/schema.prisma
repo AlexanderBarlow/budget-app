@@ -8,64 +8,53 @@ datasource db {
 }
 
 //
-// =====================================
-// USER MODEL
-// =====================================
+// =======================
+// USER
+// =======================
 model User {
-  id          String            @id @default(uuid())
-  email       String            @unique
-  createdAt   DateTime          @default(now())
+  id          String   @id @default(uuid())
+  email       String   @unique
+  createdAt   DateTime @default(now())
 
   incomes     Income[]
   expenses    Expense[]
   categories  ExpenseCategory[]
   accounts    Account[]
+  transactions Transaction[]
 }
 
 //
-// =====================================
-// INCOME MODEL
-// =====================================
+// =======================
+// INCOME (RECURRING SOURCE)
+// =======================
 model Income {
-  id                String        @id @default(uuid())
-  userId            String
-  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  incomeSource      String
-  incomeType        IncomeType
+  source          String
+  type            IncomeType
+  payFrequency    PayFrequency
 
-  salaryAnnual      Int?
-  hourlyRate        Decimal?
-  hoursPerWeek      Decimal?
-  overtimeRate      Decimal?
-  overtimeHours     Decimal?
-  holidayRate       Decimal?
-  holidayHours      Decimal?
-  bonuses           Decimal?
-  tips              Decimal?
-  commission        Decimal?
+  grossPerPeriod  Decimal?
+  netPerPeriod    Decimal?
+  deductionRate   Decimal?
+  manualOverride  Boolean  @default(false)
 
-  payFrequency      PayFrequency
+  lastPaid        DateTime?
+  nextExpected    DateTime?
+  predictedDates  Json?
 
-  mostRecentPay     DateTime?
-  previousPayDate   DateTime?
-  nextPayDate       DateTime?
-  predictedDates    Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  grossPerPeriod    Decimal?
-  netPerPeriod      Decimal?
-  deductionRate     Decimal?
-  manualNetOverride Boolean? @default(false)
-
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  transactions    Transaction[]
 }
 
 //
-// =====================================
-// EXPENSE CATEGORY MODEL
-// (User-defined + default categories)
-// =====================================
+// =======================
+// EXPENSE CATEGORY
+// =======================
 model ExpenseCategory {
   id        String   @id @default(uuid())
   userId    String
@@ -74,53 +63,79 @@ model ExpenseCategory {
   name      String
   color     String?
   icon      String?
-  isDefault Boolean @default(false)
+  isDefault Boolean  @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  expenses  Expense[]
+  expenses      Expense[]
+  transactions  Transaction[]
 }
 
 //
-// =====================================
-// EXPENSE MODEL
-// =====================================
+// =======================
+// EXPENSE (RECURRING RULE)
+// =======================
 model Expense {
-  id            String    @id @default(uuid())
+  id            String   @id @default(uuid())
   userId        String
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Category Relation
   categoryId    String?
   category      ExpenseCategory? @relation(fields: [categoryId], references: [id])
 
   name          String
-  amount        Decimal
+  defaultAmount Decimal
+  frequency     ExpenseFrequency
+  isFixed       Boolean @default(true)
 
-  frequency     ExpenseFrequency @default(MONTHLY)
-  billingDate   DateTime?
-  nextCharge    DateTime?
-  lastCharge    DateTime?
+  nextExpected  DateTime?
+  lastPaid      DateTime?
 
-  isFixed       Boolean   @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  transactions  Transaction[]
 }
 
 //
-// =====================================
-// ACCOUNTS MODEL
-// =====================================
-model Account {
-  id            String    @id @default(uuid())
-  userId        String
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+// =======================
+// TRANSACTIONS (ACTUAL HISTORY)
+// =======================
+model Transaction {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  type          String                // Checking, Savings, Brokerage, etc.
-  institution   String?               // Chase, Fidelity, etc.
-  nickname      String?               // "Emergency Fund"
+  type        TransactionType
+  amount      Decimal
+  date        DateTime
+
+  // Optional links
+  incomeId    String?
+  income      Income?  @relation(fields: [incomeId], references: [id])
+
+  expenseId   String?
+  expense     Expense? @relation(fields: [expenseId], references: [id])
+
+  categoryId  String?
+  category    ExpenseCategory? @relation(fields: [categoryId], references: [id])
+
+  createdAt   DateTime @default(now())
+}
+
+//
+// =======================
+// ACCOUNTS
+// =======================
+model Account {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type          String
+  institution   String?
+  nickname      String?
   balance       Decimal
   interestRate  Decimal?
 
@@ -129,17 +144,14 @@ model Account {
 }
 
 //
-// =====================================
+// =======================
 // ENUMS
-// =====================================
-
-// Income Types
+// =======================
 enum IncomeType {
   SALARY
   HOURLY
 }
 
-// Pay Frequencies
 enum PayFrequency {
   WEEKLY
   BIWEEKLY
@@ -147,7 +159,6 @@ enum PayFrequency {
   MONTHLY
 }
 
-// Recurring expense frequency
 enum ExpenseFrequency {
   WEEKLY
   BIWEEKLY
@@ -155,4 +166,10 @@ enum ExpenseFrequency {
   QUARTERLY
   YEARLY
   ONCE
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
 }
